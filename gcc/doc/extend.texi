@@ -5901,6 +5901,57 @@ initialization will result in future breakage.
 GCC emits warnings based on this attribute by default; use
 @option{-Wno-designated-init} to suppress them.
 
+@item force
+A type marked with this attribute is exempt from some warnings that
+come from the use of other type attributes --- specifically
+@code{address_space} and @code{noderef}.  Ordinarily @code{force} is
+used in a cast, like:
+
+@smallexample
+__attribute__((noderef) int *p;
+int x = *(__attribute__ ((force)) int *) p;
+@end smallexample
+
+@item address_space (@var{NUM})
+This attribute may only be applied to pointer types.  It indicates
+that the pointer points to an object in address space @var{NUM}, an
+integer.  Pointers to different address spaces are considered
+incompatible, and a warning is emitted when such pointers are
+converted, compared, or subtracted.  If no address space attribute is
+given, then zero is assumed.  Note that the @code{NULL} pointer is,
+for convenience, exempted from the usual rules --- for example it is
+ok to assign the constant zero regardless of address space, and so all
+of these are allowed:
+
+@smallexample
+__attribute__((address_space(5))) *p = NULL;
+__attribute__((address_space(5))) *p = 0;
+__attribute__((address_space(5))) *p = (void *) 0;
+@end smallexample
+
+The @code{force} attribute can be used to cast between address spaces.
+
+Note that this is a checking feature only.  It does not affect code
+generation, and is distinct from the named address space feature
+(@pxref{Named Address Spaces}).
+
+GCC emits warnings based on this attribute by default; use
+@option{-Wno-address-space} to suppress them.
+
+@item noderef
+This attribute may only be applied to pointer types.  It indicates
+that it is invalid to attempt to dereference the pointer.  This can be
+used in environments like operating system kernels, which must
+manipulate pointers to other address spaces.  Casts which add or
+discard this attribute are also flagged, unless @code{force} is also
+used.
+
+The @code{force} attribute can be used to remove @code{noderef}
+attribute.
+
+GCC emits warnings based on this attribute by default; use
+@option{-Wno-noderef} to suppress them.
+
 @end table
 
 To specify multiple attributes, separate them by commas within the

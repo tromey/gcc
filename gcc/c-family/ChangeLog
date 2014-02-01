@@ -1,3 +1,12 @@
+2014-07-30  Tom Tromey  <tromey@redhat.com>
+
+	PR c/59850:
+	* c-common.c (c_common_attribute_table): Add "force",
+	"address_space", and "noderef".
+	(handle_force_attribute, handle_address_space_attribute)
+	(handle_noderef_attribute): New functions.
+	* c.opt (Waddress-space): New flag.
+
 2014-07-30  Jason Merrill  <jason@redhat.com>
 
 	PR c++/61659

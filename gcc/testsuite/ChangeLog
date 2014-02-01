@@ -1,3 +1,9 @@
+2014-07-30  Tom Tromey  <tromey@redhat.com>
+
+	PR c/59850:
+	* gcc.dg/attr-noderef.c: New file.
+	* gcc.dg/Waddress-space.c: New file.
+
 2014-07-30  Paolo Carlini  <paolo.carlini@oracle.com>
 
 	PR c++/57397

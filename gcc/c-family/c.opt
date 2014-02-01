@@ -271,6 +271,10 @@ Waddress
 C ObjC C++ ObjC++ Var(warn_address) Warning LangEnabledBy(C ObjC C++ ObjC++,Wall)
 Warn about suspicious uses of memory addresses
 
+Waddress-space
+C ObjC Var(warn_address_space) Init(1) Warning
+Warn about mixing pointers to different address spaces
+
 Wall
 C ObjC C++ ObjC++ Warning
 Enable most warning messages
@@ -537,6 +541,10 @@ Warn about global functions without previous declarations
 Wmissing-field-initializers
 C ObjC C++ ObjC++ Var(warn_missing_field_initializers) Warning EnabledBy(Wextra)
 Warn about missing fields in struct initializers
+
+Wnoderef
+C ObjC Var(warn_noderef) Init(1) Warning
+Warn about dereferencing pointers marked noderef
 
 Wsizeof-pointer-memaccess
 C ObjC C++ ObjC++ Var(warn_sizeof_pointer_memaccess) Warning LangEnabledBy(C ObjC C++ ObjC++,Wall)

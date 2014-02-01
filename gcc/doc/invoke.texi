@@ -238,7 +238,7 @@ Objective-C and Objective-C++ Dialects}.
 @xref{Warning Options,,Options to Request or Suppress Warnings}.
 @gccoptlist{-fsyntax-only  -fmax-errors=@var{n}  -Wpedantic @gol
 -pedantic-errors @gol
--w  -Wextra  -Wall  -Waddress  -Waggregate-return  @gol
+-w  -Wextra  -Wall  -Waddress -Wno-address-space  -Waggregate-return  @gol
 -Waggressive-loop-optimizations -Warray-bounds @gol
 -Wno-attributes -Wno-builtin-macro-redefined @gol
 -Wc++-compat -Wc++11-compat -Wcast-align  -Wcast-qual  @gol
@@ -261,6 +261,7 @@ Objective-C and Objective-C++ Dialects}.
 -Wmain -Wmaybe-uninitialized -Wmemset-transposed-args -Wmissing-braces @gol
 -Wmissing-field-initializers -Wmissing-include-dirs @gol
 -Wno-multichar  -Wnonnull  -Wodr  -Wno-overflow  -Wopenmp-simd @gol
+-Wno-multichar  -Wno-noderef -Wnonnull  -Wodr  -Wno-overflow -Wopenmp-simd @gol
 -Woverlength-strings  -Wpacked  -Wpacked-bitfield-compat  -Wpadded @gol
 -Wparentheses  -Wpedantic-ms-format -Wno-pedantic-ms-format @gol
 -Wpointer-arith  -Wno-pointer-to-int-cast @gol
@@ -3579,6 +3580,12 @@ If @option{-Wformat} is specified, also warn about @code{strftime}
 formats that may yield only a two-digit year.
 @end table
 
+@item -Wno-noderef
+@opindex Wnoderef
+@opindex Wno-noderef
+Do not warn about an attempt to dereference a pointer that has been
+marked with the @code{noderef} attribute.
+
 @item -Wnonnull
 @opindex Wnonnull
 @opindex Wno-nonnull
@@ -4710,6 +4717,15 @@ call; and comparisons against string literals result in unspecified
 behavior and are not portable in C, so they usually indicate that the
 programmer intended to use @code{strcmp}.  This warning is enabled by
 @option{-Wall}.
+
+@item -Wno-address-space
+@opindex Waddress-space
+@opindex Wno-address-space
+Do not warn about operations involving pointers with different
+@code{address_space} attributes.  Note that this is distinct from
+@code{-Waddr-space-convert}.  The @code{address_space} attribute is
+for numeric address spaces and has no impact on the generated code;
+whereas named address spaces are a target feature.
 
 @item -Wlogical-op
 @opindex Wlogical-op

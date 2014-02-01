@@ -381,6 +381,9 @@ static tree handle_omp_declare_simd_attribute (tree *, tree, tree, int,
 static tree handle_omp_declare_target_attribute (tree *, tree, tree, int,
 						 bool *);
 static tree handle_designated_init_attribute (tree *, tree, tree, int, bool *);
+static tree handle_force_attribute (tree *, tree, tree, int, bool *);
+static tree handle_address_space_attribute (tree *, tree, tree, int, bool *);
+static tree handle_noderef_attribute (tree *, tree, tree, int, bool *);
 
 static void check_function_nonnull (tree, int, tree *);
 static void check_nonnull_arg (void *, tree, unsigned HOST_WIDE_INT);
@@ -776,6 +779,12 @@ const struct attribute_spec c_common_attribute_table[] =
 			      handle_assume_aligned_attribute, false },
   { "designated_init",        0, 0, false, true, false,
 			      handle_designated_init_attribute, false },
+  { "force",                  0, 0, false, true, false,
+			      handle_force_attribute, false },
+  { "address_space",          1, 1, false, true, false,
+			      handle_address_space_attribute, false },
+  { "noderef",                0, 0, false, true, false,
+			      handle_noderef_attribute, true },
   { NULL,                     0, 0, false, false, false, NULL, false }
 };
 
@@ -9288,6 +9297,79 @@ handle_designated_init_attribute (tree *node, tree name, tree, int,
   if (TREE_CODE (*node) != RECORD_TYPE)
     {
       error ("%qE attribute is only valid on %<struct%> type", name);
+      *no_add_attrs = true;
+    }
+  return NULL_TREE;
+}
+
+static tree
+handle_force_attribute (tree *node, tree name, tree args, int,
+			bool *no_add_attrs)
+{
+  if (TREE_CODE (*node) == FUNCTION_TYPE)
+    {
+      /* Pass from function type to the return type.  */
+      decl_attributes (&TREE_TYPE (*node), tree_cons (name, args, NULL_TREE),
+		       0);
+      *no_add_attrs = true;
+    }
+
+  /* Ok for any type.  */
+  return NULL_TREE;
+}
+
+static tree
+handle_address_space_attribute (tree *node, tree name, tree args,
+				int, bool *no_add_attrs)
+{
+  if (TREE_CODE (*node) == FUNCTION_TYPE)
+    {
+      /* Pass from function type to the return type.  */
+      decl_attributes (&TREE_TYPE (*node), tree_cons (name, args, NULL_TREE),
+		       0);
+      *no_add_attrs = true;
+    }
+  else
+    {
+      if (TREE_CODE (*node) != POINTER_TYPE)
+	{
+	  error ("%qE attribute is only valid on pointer types", name);
+	  *no_add_attrs = true;
+	}
+      if (TREE_CODE (TREE_VALUE (args)) != INTEGER_CST
+	  || TREE_CODE (TREE_TYPE (TREE_VALUE (args))) != INTEGER_TYPE)
+	{
+	  error ("argument to %qE attribute must be an integer constant", name);
+	  *no_add_attrs = true;
+	}
+
+      tree attr = lookup_attribute ("address_space", TYPE_ATTRIBUTES (*node));
+      if (attr != NULL_TREE
+	  && !tree_int_cst_equal (TREE_VALUE (TREE_VALUE (attr)),
+				  TREE_VALUE (args)))
+	{
+	  error ("%qE attribute already set to conflicting value", name);
+	  *no_add_attrs = true;
+	}
+    }
+
+  return NULL_TREE;
+}
+
+static tree
+handle_noderef_attribute (tree *node, tree name, tree args,
+			  int, bool *no_add_attrs)
+{
+  if (TREE_CODE (*node) == FUNCTION_TYPE)
+    {
+      /* Pass from function type to the return type.  */
+      decl_attributes (&TREE_TYPE (*node), tree_cons (name, args, NULL_TREE),
+		       0);
+      *no_add_attrs = true;
+    }
+  else if (TREE_CODE (*node) != POINTER_TYPE)
+    {
+      error ("%qE attribute is only valid on pointer types", name);
       *no_add_attrs = true;
     }
   return NULL_TREE;

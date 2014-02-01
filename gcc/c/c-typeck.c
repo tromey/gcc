@@ -118,6 +118,38 @@ static int lvalue_or_else (location_t, const_tree, enum lvalue_use);
 static void record_maybe_used_decl (tree);
 static int comptypes_internal (const_tree, const_tree, bool *, bool *);
 
+/* Return true if TYPE is "noderef".  */
+
+static bool
+noderef_p (const_tree type)
+{
+  if (!warn_address_space)
+    return false;
+  return lookup_attribute ("noderef", TYPE_ATTRIBUTES (type)) != NULL_TREE;
+}
+
+/* Return true if TYPE is "force".  */
+
+static bool
+type_force_p (const_tree type)
+{
+  return lookup_attribute ("force", TYPE_ATTRIBUTES (type)) != NULL_TREE;
+}
+
+/* Return the value of the Sparse-style "address_space" attribute.  If
+   there is no such attribute, return 0.  */
+
+static int
+get_sparse_address_space (const_tree type)
+{
+  if (!warn_address_space)
+    return 0;
+  tree attr = lookup_attribute ("address_space", TYPE_ATTRIBUTES (type));
+  if (attr == NULL_TREE)
+    return 0;
+  return TREE_INT_CST_LOW (TREE_VALUE (TREE_VALUE (attr)));
+}
+
 /* Return true if EXP is a null pointer constant, false otherwise.  */
 
 static bool
@@ -132,7 +164,9 @@ null_pointer_constant_p (const_tree expr)
 	  && (INTEGRAL_TYPE_P (type)
 	      || (TREE_CODE (type) == POINTER_TYPE
 		  && VOID_TYPE_P (TREE_TYPE (type))
-		  && TYPE_QUALS (TREE_TYPE (type)) == TYPE_UNQUALIFIED)));
+		  && TYPE_QUALS (TREE_TYPE (type)) == TYPE_UNQUALIFIED
+		  && get_sparse_address_space (type) == 0
+		  && !noderef_p (type))));
 }
 
 /* EXPR may appear in an unevaluated part of an integer constant
@@ -3445,6 +3479,12 @@ parser_build_binary_op (location_t location, enum tree_code code,
 		"comparison between %qT and %qT",
 		type1, type2);
 
+  if (get_sparse_address_space (type1) != get_sparse_address_space (type2)
+      && !null_pointer_constant_p (arg1.value)
+      && !null_pointer_constant_p (arg2.value))
+    warning_at (location, OPT_Waddress_space,
+		"pointers with incompatible address spaces in expression");
+
   return result;
 }
 
@@ -4211,6 +4251,24 @@ build_unary_op (location_t location,
 
       argtype = build_pointer_type (argtype);
 
+      /* If this wraps a COMPONENT_REF of an INDIRECT_REF, make sure
+	 to transfer the address space and noderef attributes, if
+	 any.  */
+      if (TREE_CODE (arg) == COMPONENT_REF
+	  && TREE_CODE (TREE_OPERAND (arg, 0)) == INDIRECT_REF)
+	{
+	  tree ptrtype, attr;
+
+	  ptrtype = TREE_TYPE (TREE_OPERAND (TREE_OPERAND (arg, 0), 0));
+
+	  attr = lookup_attribute ("address_space", TYPE_ATTRIBUTES (ptrtype));
+	  if (attr != NULL_TREE)
+	    argtype = build_type_attribute_variant (argtype, attr);
+	  attr = lookup_attribute ("noderef", TYPE_ATTRIBUTES (ptrtype));
+	  if (attr != NULL_TREE)
+	    argtype = build_type_attribute_variant (argtype, attr);
+	}
+
       /* ??? Cope with user tricks that amount to offsetof.  Delete this
 	 when we have proper support for integer constant expressions.  */
       val = get_base_address (arg);
@@ -4619,6 +4677,19 @@ build_conditional_expr (location_t colon_loc, tree ifexp, bool ifexp_bcp,
       addr_space_t as1 = TYPE_ADDR_SPACE (TREE_TYPE (type1));
       addr_space_t as2 = TYPE_ADDR_SPACE (TREE_TYPE (type2));
       addr_space_t as_common;
+
+      if (get_sparse_address_space (type1) != get_sparse_address_space (type2))
+	{
+	  warning_at (colon_loc, OPT_Waddress_space,
+		      "pointers to different address spaces "
+		      "used in conditional expression");
+	}
+      else if (noderef_p (type1) != noderef_p (type2))
+	{
+	  warning_at (colon_loc, OPT_Waddress_space,
+		      "%<noderef%> and ordinary pointers "
+		      "used in conditional expression");
+	}
 
       if (comp_target_types (colon_loc, type1, type2))
 	result_type = common_pointer_type (type1, type2);
@@ -5068,6 +5139,16 @@ build_c_cast (location_t loc, tree type, tree expr)
 			    "from disjoint %s address space pointer",
 			    c_addr_space_name (as_to),
 			    c_addr_space_name (as_from));
+	    }
+	  else if (!type_force_p (type))
+	    {
+	      if ((get_sparse_address_space (type)
+		   != get_sparse_address_space (otype)))
+		warning_at (loc, OPT_Waddress_space,
+			    "cast of pointers in different address spaces");
+	      else if (noderef_p (type) != noderef_p (otype))
+		warning_at (loc, OPT_Waddress_space,
+			    "cast between ordinary and %<noderef%> pointers");
 	    }
 	}
 
@@ -6071,6 +6152,69 @@ convert_for_assignment (location_t location, location_t expr_loc, tree type,
 	      gcc_unreachable ();
 	    }
 	  return error_mark_node;
+	}
+
+      if (!null_pointer_constant_p (rhs)
+	  && (errtype != ic_argpass || !type_force_p (type))
+	  && (get_sparse_address_space (type)
+	      != get_sparse_address_space (rhstype)))
+	{
+	  switch (errtype)
+	    {
+	    case ic_argpass:
+	      warning_at (location, OPT_Waddress_space,
+			  "passing argument %d of %qE from pointer to "
+			  "different address space", parmnum, rname);
+	      break;
+	    case ic_assign:
+	      warning_at (location, OPT_Waddress_space,
+			  "assignment from pointer to "
+			  "different address space");
+	      break;
+	    case ic_init:
+	      warning_at (location, OPT_Waddress_space,
+			  "initialization from pointer to "
+			  "different address space");
+	      break;
+	    case ic_return:
+	      warning_at (location, OPT_Waddress_space,
+			  "return from pointer to "
+			  "different address space");
+	      break;
+	    default:
+	      gcc_unreachable ();
+	    }
+	}
+
+      if (!null_pointer_constant_p (rhs)
+	  && !type_force_p (type)
+	  && noderef_p (type) != noderef_p (rhstype))
+	{
+	  switch (errtype)
+	    {
+	    case ic_argpass:
+	      warning_at (location, OPT_Waddress_space,
+			  "passing argument %d of %qE from pointer with "
+			  "different %<noderef%> attribute", parmnum, rname);
+	      break;
+	    case ic_assign:
+	      warning_at (location, OPT_Waddress_space,
+			  "assignment from pointer with "
+			  "different %<noderef%> attribute");
+	      break;
+	    case ic_init:
+	      warning_at (location, OPT_Waddress_space,
+			  "initialization from pointer with "
+			  "different %<noderef%> attribute");
+	      break;
+	    case ic_return:
+	      warning_at (location, OPT_Waddress_space,
+			  "return from pointer with "
+			  "different %<noderef%> attribute");
+	      break;
+	    default:
+	      gcc_unreachable ();
+	    }
 	}
 
       /* Check if the right-hand side has a format attribute but the
@@ -10669,6 +10813,19 @@ build_binary_op (location_t location, enum tree_code code,
 	  addr_space_t as1 = TYPE_ADDR_SPACE (tt1);
 	  addr_space_t as_common = ADDR_SPACE_GENERIC;
 
+	  if (get_sparse_address_space (type0)
+	      != get_sparse_address_space (type1))
+	    {
+	      warning_at (location, OPT_Waddress,
+			  "comparison of pointers to different address spaces");
+	    }
+	  else if (noderef_p (type0) != noderef_p (type1))
+	    {
+	      warning_at (location, OPT_Waddress,
+			  "comparison of pointers with "
+			  "different %<noderef%> attributes");
+	    }
+
 	  /* Anything compares with void *.  void * compares with anything.
 	     Otherwise, the targets must be compatible
 	     and both must be object or both incomplete.  */
@@ -10772,7 +10929,19 @@ build_binary_op (location_t location, enum tree_code code,
 		       || null_pointer_constant_p (orig_op1))
 		warning_at (location, OPT_Wextra,
 			    "ordered comparison of pointer with null pointer");
-
+	      else if (get_sparse_address_space (type0)
+		       != get_sparse_address_space (type1))
+		{
+		  warning_at (location, OPT_Waddress_space,
+			      "comparison of pointers to "
+			      "different address spaces");
+		}
+	      else if (noderef_p (type0) != noderef_p (type1))
+		{
+		  warning_at (location, OPT_Waddress,
+			      "comparison of pointers with "
+			      "different %<noderef%> attributes");
+		}
 	    }
 	  else if (!addr_space_superset (as0, as1, &as_common))
 	    {

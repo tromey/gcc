@@ -724,6 +724,57 @@ bind_label (tree name, tree label, struct c_scope *scope,
   b->u.label = label_vars;
 }
 
+
+/* Do the work for check_noderef.  This is called via walk_tree.  */
+
+static tree
+do_check_noderef (tree *nodeptr, int *walk_subtrees, void *)
+{
+  if (TREE_CODE (*nodeptr) == ADDR_EXPR)
+    {
+      tree obj = TREE_OPERAND (*nodeptr, 0);
+
+      if (INDIRECT_REF_P (obj))
+	{
+	  /* "&*EXPR" is ok, so we skip the "&" and "*" and just
+	     examine EXPR here.  */
+	  tree ptr = TREE_OPERAND (obj, 0);
+	  *walk_subtrees = 0;
+	  walk_tree_without_duplicates (&ptr, do_check_noderef, NULL);
+	}
+      else if (TREE_CODE (obj) == COMPONENT_REF
+	       && INDIRECT_REF_P (TREE_OPERAND (obj, 0)))
+	{
+	  /* &((*EXPR).FIELD) is ok, so we skip the "&", "*", and ".",
+	     and just examine EXPR here.  */
+	  tree ptr = TREE_OPERAND (TREE_OPERAND (obj, 0), 0);
+	  *walk_subtrees = 0;
+	  walk_tree_without_duplicates (&ptr, do_check_noderef, NULL);
+	}
+    }
+  else if (INDIRECT_REF_P (*nodeptr))
+    {
+      if (lookup_attribute ("noderef",
+			    TYPE_ATTRIBUTES (TREE_TYPE (TREE_OPERAND (*nodeptr,
+								      0)))))
+	warning_at (EXPR_LOCATION (*nodeptr), OPT_Wnoderef,
+		    "dereference of %<noderef%> pointer");
+    }
+
+  return NULL_TREE;
+}
+
+/* Examine NODE for violations of "noderef" rules, and emit warnings
+   as appropriate.  */
+
+static void
+check_noderef (tree node)
+{
+  if (warn_noderef)
+    walk_tree_without_duplicates (&node, do_check_noderef, NULL);
+}
+
+
 /* Hook called at end of compilation to assume 1 elt
    for a file-scope tentative array defn that wasn't complete before.  */
 
@@ -4360,7 +4411,11 @@ finish_decl (tree decl, location_t init_loc, tree init,
     init = 0;
 
   if (init)
-    store_init_value (init_loc, decl, init, origtype);
+    {
+      if (warn_address_space && DECL_FILE_SCOPE_P (decl))
+	check_noderef (init);
+      store_init_value (init_loc, decl, init, origtype);
+    }
 
   if (c_dialect_objc () && (TREE_CODE (decl) == VAR_DECL
 			    || TREE_CODE (decl) == FUNCTION_DECL
@@ -8626,6 +8681,12 @@ finish_function (void)
     cfun->cilk_frame_decl = insert_cilk_frame (fndecl);
 
   finish_fname_decls ();
+
+  if (DECL_INITIAL (fndecl)
+      && DECL_INITIAL (fndecl) != error_mark_node
+      && DECL_FILE_SCOPE_P (fndecl)
+      && warn_address_space)
+    check_noderef (DECL_SAVED_TREE (fndecl));
 
   /* Complain if there's just no return statement.  */
   if (warn_return_type

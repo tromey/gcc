@@ -1,5 +1,16 @@
 2014-07-30  Tom Tromey  <tromey@redhat.com>
 
+	PR c/59850:
+	* c-typeck.c (noderef_p, type_force_p, get_sparse_address_space):
+	New functions.
+	(null_pointer_constant_p, parser_build_binary_op)
+	(build_unary_op, build_conditional_expr, build_c_cast)
+	(convert_for_assignment, build_binary_op): Check new attributes.
+	* c-decl.c (do_check_noderef, check_noderef): New functions.
+	(finish_decl, finish_function): Call check_noderef.
+
+2014-07-30  Tom Tromey  <tromey@redhat.com>
+
 	* c-typeck.c (struct constructor_stack) <designator_depth>: New
 	field.
 	(really_start_incremental_init, push_init_level): Initialize
