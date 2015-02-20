@@ -691,6 +691,14 @@ init_iconv_desc (cpp_reader *pfile, const char *to, const char *from)
   return ret;
 }
 
+/* Destroy a cset_converter.  */
+static void
+destroy_iconv_desc (struct cset_converter *cset)
+{
+  if (cset->func == convert_using_iconv)
+    iconv_close (cset->cd);
+}
+
 /* If charset conversion is requested, initialize iconv(3) descriptors
    for conversion from the source character set to the execution
    character sets.  If iconv is not present in the C library, and
@@ -741,16 +749,11 @@ _cpp_destroy_iconv (cpp_reader *pfile)
 {
   if (HAVE_ICONV)
     {
-      if (pfile->narrow_cset_desc.func == convert_using_iconv)
-	iconv_close (pfile->narrow_cset_desc.cd);
-      if (pfile->utf8_cset_desc.func == convert_using_iconv)
-	iconv_close (pfile->utf8_cset_desc.cd);
-      if (pfile->char16_cset_desc.func == convert_using_iconv)
-	iconv_close (pfile->char16_cset_desc.cd);
-      if (pfile->char32_cset_desc.func == convert_using_iconv)
-	iconv_close (pfile->char32_cset_desc.cd);
-      if (pfile->wide_cset_desc.func == convert_using_iconv)
-	iconv_close (pfile->wide_cset_desc.cd);
+      destroy_iconv_desc (&pfile->narrow_cset_desc);
+      destroy_iconv_desc (&pfile->utf8_cset_desc);
+      destroy_iconv_desc (&pfile->char16_cset_desc);
+      destroy_iconv_desc (&pfile->char32_cset_desc);
+      destroy_iconv_desc (&pfile->wide_cset_desc);
     }
 }
 
@@ -1733,8 +1736,7 @@ _cpp_convert_input (cpp_reader *pfile, const char *input_charset,
     }
 
   /* Clean up the mess.  */
-  if (input_cset.func == convert_using_iconv)
-    iconv_close (input_cset.cd);
+  destroy_iconv_desc (&input_cset);
 
   /* Resize buffer if we allocated substantially too much, or if we
      haven't enough space for the \n-terminator or following
