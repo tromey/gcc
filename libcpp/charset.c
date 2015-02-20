@@ -1372,9 +1372,9 @@ converter_for_type (cpp_reader *pfile, enum cpp_ttype type)
 /* FROM is an array of cpp_string structures of length COUNT.  These
    are to be converted from the source to the execution character set,
    escape sequences translated, and finally all are to be
-   concatenated.  WIDE indicates whether or not to produce a wide
-   string.  The result is written into TO.  Returns true for success,
-   false for failure.  */
+   concatenated.  TYPE indicates the type of string to create.  The
+   result is written into TO.  Returns true for success, false for
+   failure.  */
 bool
 cpp_interpret_string (cpp_reader *pfile, const cpp_string *from, size_t count,
 		      cpp_string *to,  enum cpp_ttype type)
