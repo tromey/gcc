@@ -1840,8 +1840,8 @@ _cpp_default_encoding (void)
    LENGTH_IN_BYTES is the length of CHARS, in bytes.  RESULT_LENGTH is
    an out parameter that is filled in with the number of bytes in the
    output.  This returns a newly-malloced string (which the caller
-   must free) on success, or NULL on conversion error.  FIXME report
-   the error here?  */
+   must free) on success; or NULL on conversion error, in which case
+   an error is reported.  */
 unsigned char *
 cpp_convert_from_execution_charset (cpp_reader *pfile, cpp_ttype type,
 				    const unsigned char *chars,
