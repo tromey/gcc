@@ -32,8 +32,6 @@
 #define USE_STRFTIME(FMTPOS)
 #endif
 
-#define PASTE(X, Y) X ## Y
-
 #if defined (WIDE)
 #define PREFIX L
 #define CHAR wchar_t
@@ -49,6 +47,8 @@
 #endif
 
 #ifndef STR
+#define PASTE2(X, Y) X ## Y
+#define PASTE(X, Y) PASTE2 (X, Y)
 #define STR(S) PASTE (PREFIX, S)
 #endif
 
@@ -109,6 +109,8 @@ typedef struct _FILE FILE;
 extern FILE *stdin;
 extern FILE *stdout;
 
+struct tm;
+
 /* If PREFIX is defined, then we're using a type other than "char",
    and we'll need the declarations below.  */
 
@@ -135,8 +137,6 @@ extern int vsscanf (const char *restrict, const char *restrict, va_list);
 extern char *gettext (const char *);
 extern char *dgettext (const char *, const char *);
 extern char *dcgettext (const char *, const char *, int);
-
-struct tm;
 
 extern size_t strftime (char *restrict, size_t, const char *restrict,
 			const struct tm *restrict);
