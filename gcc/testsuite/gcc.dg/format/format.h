@@ -141,8 +141,8 @@ extern USE_PRINTF(2,3) int sprintf_gnu (char *restrict, const char *restrict, ..
 #define sprintf sprintf_gnu
 
 extern USE_PRINTF(2,0) int vfprintf_gnu (FILE *restrict, const char *restrict, va_list);
-#undef vsprintf
-#define vsprintf vsprintf_gnu
+#undef vfprintf
+#define vfprintf vfprintf_gnu
 
 extern USE_PRINTF(1,0) int vprintf_gnu (const char *restrict, va_list);
 #undef vprintf
