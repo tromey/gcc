@@ -1614,6 +1614,8 @@ check_format_arg (void *ctx, tree format_tree,
 						   (const unsigned char *) format_chars,
 						   format_length,
 						   &source_length);
+  if (source_chars == NULL)
+    return;
 
   if (source_length < 1 || source_chars[--source_length] != 0)
     {
