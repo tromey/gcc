@@ -823,6 +823,12 @@ extern bool cpp_interpret_string_notranslate (cpp_reader *,
 /* Convert a host character constant to the execution character set.  */
 extern cppchar_t cpp_host_to_exec_charset (cpp_reader *, cppchar_t);
 
+/* Convert a string in some execution character set back to UTF-8.  */
+extern unsigned char *cpp_convert_from_execution_charset (cpp_reader *,
+							  cpp_ttype,
+							  const unsigned char*,
+							  int, int *);
+
 /* Used to register macros and assertions, perhaps from the command line.
    The text is the same as the command line argument.  */
 extern void cpp_define (cpp_reader *, const char *);

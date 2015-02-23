@@ -42,6 +42,7 @@ along with GCC; see the file COPYING3.  If not see
 #include "c-format.h"
 #include "alloc-pool.h"
 #include "c-target.h"
+#include "c-pragma.h"
 
 /* Handle attributes associated with format checking.  */
 
@@ -95,6 +96,9 @@ valid_stringptr_type_p (tree strref)
   return (strref != NULL
 	  && TREE_CODE (strref) == POINTER_TYPE
 	  && (TYPE_MAIN_VARIANT (TREE_TYPE (strref)) == char_type_node
+	      || TYPE_MAIN_VARIANT (TREE_TYPE (strref)) == char16_type_node
+	      || TYPE_MAIN_VARIANT (TREE_TYPE (strref)) == char32_type_node
+	      || TYPE_MAIN_VARIANT (TREE_TYPE (strref)) == wchar_type_node
 	      || objc_string_ref_type_p (strref)
 	      || (*targetcm.string_object_ref_type_p) ((const_tree) strref)));
 }
@@ -172,7 +176,10 @@ check_format_string (tree fntype, unsigned HOST_WIDE_INT format_num,
 
   /* Now check that the arg matches the expected type.  */
   is_char_ref = 
-    (TYPE_MAIN_VARIANT (TREE_TYPE (ref)) == char_type_node);
+    (TYPE_MAIN_VARIANT (TREE_TYPE (ref)) == char_type_node
+     || TYPE_MAIN_VARIANT (TREE_TYPE (ref)) == char16_type_node
+     || TYPE_MAIN_VARIANT (TREE_TYPE (ref)) == char32_type_node
+     || TYPE_MAIN_VARIANT (TREE_TYPE (ref)) == wchar_type_node);
 
   fmt_flags = format_flags (expected_format_type);
   is_objc_sref = is_target_sref = false;
@@ -910,9 +917,6 @@ typedef struct
      string literals, but had extra format arguments and used $ operand
      numbers.  */
   int number_dollar_extra_args;
-  /* Number of leaves of the format argument that were wide string
-     literals.  */
-  int number_wide;
   /* Number of leaves of the format argument that were empty strings.  */
   int number_empty;
   /* Number of leaves of the format argument that were unterminated
@@ -1344,7 +1348,6 @@ check_format_info (function_format_info *info, tree params)
   res.number_extra_args = 0;
   res.extra_arg_loc = UNKNOWN_LOCATION;
   res.number_dollar_extra_args = 0;
-  res.number_wide = 0;
   res.number_empty = 0;
   res.number_unterminated = 0;
   res.number_other = 0;
@@ -1414,9 +1417,6 @@ check_format_info (function_format_info *info, tree params)
       && res.number_other == 0)
     warning_at (loc, OPT_Wformat_zero_length, "zero-length %s format string",
 	     format_types[info->format_type].name);
-
-  if (res.number_wide > 0)
-    warning_at (loc, OPT_Wformat_, "format is a wide character string");
 
   if (res.number_unterminated > 0)
     warning_at (loc, OPT_Wformat_, "unterminated format string");
@@ -1563,11 +1563,6 @@ check_format_arg (void *ctx, tree format_tree,
       res->number_non_literal++;
       return;
     }
-  if (TYPE_MAIN_VARIANT (TREE_TYPE (TREE_TYPE (format_tree))) != char_type_node)
-    {
-      res->number_wide++;
-      return;
-    }
   format_chars = TREE_STRING_POINTER (format_tree);
   format_length = TREE_STRING_LENGTH (format_tree);
   if (array_size != 0)
@@ -1584,8 +1579,11 @@ check_format_arg (void *ctx, tree format_tree,
 	    format_length = array_size_value;
 	}
     }
+
+  tree char_type = TYPE_MAIN_VARIANT (TREE_TYPE (TREE_TYPE (format_tree)));
   if (offset)
     {
+      offset *= TYPE_PRECISION (char_type) / BITS_PER_UNIT;
       if (offset >= format_length)
 	{
 	  res->number_non_literal++;
@@ -1594,14 +1592,39 @@ check_format_arg (void *ctx, tree format_tree,
       format_chars += offset;
       format_length -= offset;
     }
-  if (format_length < 1 || format_chars[--format_length] != 0)
+
+  // Convert from the appropriate execution character set back to
+  // something we can use.
+  cpp_ttype type;
+  if (char_type == char_type_node)
+    type = CPP_STRING;
+  else if (char_type == char16_type_node)
+    type = CPP_STRING16;
+  else if (char_type == char32_type_node)
+    type = CPP_STRING32;
+  else
+    {
+      gcc_assert (char_type == wchar_type_node);
+      type = CPP_WSTRING;
+    }
+  int source_length;
+  char *source_chars
+    = (char *) cpp_convert_from_execution_charset (parse_in,
+						   type,
+						   (const unsigned char *) format_chars,
+						   format_length,
+						   &source_length);
+
+  if (source_length < 1 || source_chars[--source_length] != 0)
     {
       res->number_unterminated++;
+      free (source_chars);
       return;
     }
-  if (format_length == 0)
+  if (source_length == 0)
     {
       res->number_empty++;
+      free (source_chars);
       return;
     }
 
@@ -1609,7 +1632,10 @@ check_format_arg (void *ctx, tree format_tree,
   while (arg_num + 1 < info->first_arg_num)
     {
       if (params == 0)
-	return;
+	{
+	  free (source_chars);
+	  return;
+	}
       params = TREE_CHAIN (params);
       ++arg_num;
     }
@@ -1619,9 +1645,10 @@ check_format_arg (void *ctx, tree format_tree,
   res->number_other++;
   fwt_pool = create_alloc_pool ("format_wanted_type pool",
                                 sizeof (format_wanted_type), 10);
-  check_format_info_main (res, info, format_chars, format_length,
+  check_format_info_main (res, info, source_chars, source_length,
                           params, arg_num, fwt_pool);
   free_alloc_pool (fwt_pool);
+  free (source_chars);
 }
 
 

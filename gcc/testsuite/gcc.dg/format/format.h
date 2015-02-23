@@ -32,6 +32,27 @@
 #define USE_STRFTIME(FMTPOS)
 #endif
 
+#define PASTE(X, Y) X ## Y
+
+#if defined (WIDE)
+#define PREFIX L
+#define CHAR wchar_t
+#elif defined (CHAR16)
+#define PREFIX u
+#define CHAR char16_t
+#elif defined (CHAR32)
+#define PREFIX U
+#define CHAR char32_t
+#else
+#define CHAR char
+#define STR(S) S
+#endif
+
+#ifndef STR
+#define STR(S) PASTE (PREFIX, S)
+#endif
+
+
 #include <stdarg.h>
 #include <stddef.h>
 
@@ -88,6 +109,11 @@ typedef struct _FILE FILE;
 extern FILE *stdin;
 extern FILE *stdout;
 
+/* If PREFIX is defined, then we're using a type other than "char",
+   and we'll need the declarations below.  */
+
+#ifndef PREFIX
+
 extern int fprintf (FILE *restrict, const char *restrict, ...);
 extern int printf (const char *restrict, ...);
 extern int fprintf_unlocked (FILE *restrict, const char *restrict, ...);
@@ -117,74 +143,78 @@ extern size_t strftime (char *restrict, size_t, const char *restrict,
 
 extern ssize_t strfmon (char *restrict, size_t, const char *restrict, ...);
 
-/* Mingw specific part.  */
-#if !defined (USE_SYSTEM_FORMATS) && defined(_WIN32) && !defined(DONT_GNU_PROTOTYPE)
+#endif /* PREFIX */
 
-extern USE_PRINTF(2,3) int fprintf_gnu (FILE *restrict, const char *restrict, ...);
+
+/* Handle the wider-than-char case, and also Mingw-specific code.  */
+
+#if defined (PREFIX) || (!defined (USE_SYSTEM_FORMATS) && defined(_WIN32) && !defined(DONT_GNU_PROTOTYPE))
+
+extern USE_PRINTF(2,3) int fprintf_gnu (FILE *restrict, const CHAR *restrict, ...);
 #undef fprintf
 #define fprintf fprintf_gnu
 
-extern USE_PRINTF(1,2) int printf_gnu (const char *restrict, ...);
+extern USE_PRINTF(1,2) int printf_gnu (const CHAR *restrict, ...);
 #undef printf
 #define printf printf_gnu
 
-extern USE_PRINTF(2,3) int fprintf_unlocked_gnu (FILE *restrict, const char *restrict, ...);
+extern USE_PRINTF(2,3) int fprintf_unlocked_gnu (FILE *restrict, const CHAR *restrict, ...);
 #undef fprintf_unlocked
 #define fprintf_unlocked fprintf_unlocked_gnu
 
-extern USE_PRINTF(1,2)int printf_unlocked_gnu (const char *restrict, ...);
+extern USE_PRINTF(1,2)int printf_unlocked_gnu (const CHAR *restrict, ...);
 #undef printf_unlocked
 #define printf_unlocked printf_unlocked_gnu
 
-extern USE_PRINTF(2,3) int sprintf_gnu (char *restrict, const char *restrict, ...);
+extern USE_PRINTF(2,3) int sprintf_gnu (CHAR *restrict, const CHAR *restrict, ...);
 #undef sprintf
 #define sprintf sprintf_gnu
 
-extern USE_PRINTF(2,0) int vfprintf_gnu (FILE *restrict, const char *restrict, va_list);
+extern USE_PRINTF(2,0) int vfprintf_gnu (FILE *restrict, const CHAR *restrict, va_list);
 #undef vfprintf
 #define vfprintf vfprintf_gnu
 
-extern USE_PRINTF(1,0) int vprintf_gnu (const char *restrict, va_list);
+extern USE_PRINTF(1,0) int vprintf_gnu (const CHAR *restrict, va_list);
 #undef vprintf
 #define vprintf vprintf_gnu
 
-extern USE_PRINTF(2,0) int vsprintf_gnu (char *restrict, const char *restrict, va_list);
+extern USE_PRINTF(2,0) int vsprintf_gnu (CHAR *restrict, const CHAR *restrict, va_list);
 #undef vsprintf
 #define vsprintf vsprintf_gnu
 
-extern USE_PRINTF(3,4) int snprintf_gnu (char *restrict, size_t, const char *restrict, ...);
+extern USE_PRINTF(3,4) int snprintf_gnu (CHAR *restrict, size_t, const CHAR *restrict, ...);
 #undef snprintf
 #define snprintf snprintf_gnu
 
-extern USE_PRINTF(3,0) int vsnprintf_gnu (char *restrict, size_t, const char *restrict, va_list);
+extern USE_PRINTF(3,0) int vsnprintf_gnu (CHAR *restrict, size_t, const CHAR *restrict, va_list);
 #undef vsnprintf
 #define vsnprintf vsnprintf_gnu
 
-extern USE_SCANF(2,3) int fscanf_gnu (FILE *restrict, const char *restrict, ...);
+extern USE_SCANF(2,3) int fscanf_gnu (FILE *restrict, const CHAR *restrict, ...);
 #undef fscanf
 #define fscanf fscanf_gnu
 
-extern USE_SCANF(1,2) int scanf_gnu (const char *restrict, ...);
+extern USE_SCANF(1,2) int scanf_gnu (const CHAR *restrict, ...);
 #undef scanf
 #define scanf scanf_gnu
 
-extern USE_SCANF(2,3) int sscanf_gnu (const char *restrict, const char *restrict, ...);
+extern USE_SCANF(2,3) int sscanf_gnu (const CHAR *restrict, const CHAR *restrict, ...);
 #undef sscanf
 #define sscanf sscanf_gnu
 
-extern USE_SCANF(2,0) int vfscanf_gnu (FILE *restrict, const char *restrict, va_list);
+extern USE_SCANF(2,0) int vfscanf_gnu (FILE *restrict, const CHAR *restrict, va_list);
 #undef vfscanf
 #define vfscanf vfscanf_gnu
 
-extern USE_SCANF(1,0) int vscanf_gnu (const char *restrict, va_list);
+extern USE_SCANF(1,0) int vscanf_gnu (const CHAR *restrict, va_list);
 #undef vscanf
 #define vscanf vscanf_gnu
 
-extern USE_SCANF(2,0) int vsscanf_gnu (const char *restrict, const char *restrict, va_list);
+extern USE_SCANF(2,0) int vsscanf_gnu (const CHAR *restrict, const CHAR *restrict, va_list);
 #undef vsscanf
 #define vsscanf vsscanf_gnu
 
-extern USE_STRFTIME(3) size_t strftime_gnu (char *restrict, size_t, const char *restrict,
+extern USE_STRFTIME(3) size_t strftime_gnu (CHAR *restrict, size_t, const CHAR *restrict,
 			const struct tm *restrict);
 #undef strftime
 #define strftime strftime_gnu

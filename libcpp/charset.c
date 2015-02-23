@@ -699,18 +699,12 @@ destroy_iconv_desc (struct cset_converter *cset)
     iconv_close (cset->cd);
 }
 
-/* If charset conversion is requested, initialize iconv(3) descriptors
-   for conversion from the source character set to the execution
-   character sets.  If iconv is not present in the C library, and
-   conversion is requested, issue an error.  */
-
-void
-cpp_init_iconv (cpp_reader *pfile)
+/* Return the name of the current wide charset.  */
+static const char *
+get_wide_charset (cpp_reader *pfile)
 {
-  const char *ncset = CPP_OPTION (pfile, narrow_charset);
   const char *wcset = CPP_OPTION (pfile, wide_charset);
   const char *default_wcset;
-
   bool be = CPP_OPTION (pfile, bytes_big_endian);
 
   if (CPP_OPTION (pfile, wchar_precision) >= 32)
@@ -722,10 +716,36 @@ cpp_init_iconv (cpp_reader *pfile)
        so don't do any conversion at all.  */
    default_wcset = SOURCE_CHARSET;
 
-  if (!ncset)
-    ncset = SOURCE_CHARSET;
   if (!wcset)
     wcset = default_wcset;
+
+  return wcset;
+}
+
+/* Return the name of the current narrow charset.  */
+static const char *
+get_narrow_charset (cpp_reader *pfile)
+{
+  const char *ncset = CPP_OPTION (pfile, narrow_charset);
+
+  if (!ncset)
+    ncset = SOURCE_CHARSET;
+
+  return ncset;
+}
+
+/* If charset conversion is requested, initialize iconv(3) descriptors
+   for conversion from the source character set to the execution
+   character sets.  If iconv is not present in the C library, and
+   conversion is requested, issue an error.  */
+
+void
+cpp_init_iconv (cpp_reader *pfile)
+{
+  const char *ncset = get_narrow_charset (pfile);
+  const char *wcset = get_wide_charset (pfile);
+
+  bool be = CPP_OPTION (pfile, bytes_big_endian);
 
   pfile->narrow_cset_desc = init_iconv_desc (pfile, ncset, SOURCE_CHARSET);
   pfile->narrow_cset_desc.width = CPP_OPTION (pfile, char_precision);
@@ -1810,4 +1830,74 @@ _cpp_default_encoding (void)
     current_encoding = SOURCE_CHARSET;
 
   return current_encoding;
+}
+
+
+
+/* Convert a string in some execution character set back to the source
+   charset.  TYPE is the type of the input string, one of the
+   CPP_*STRING* constants.  CHARS holds the input bytes.
+   LENGTH_IN_BYTES is the length of CHARS, in bytes.  RESULT_LENGTH is
+   an out parameter that is filled in with the number of bytes in the
+   output.  This returns a newly-malloced string (which the caller
+   must free) on success, or NULL on conversion error.  FIXME report
+   the error here?  */
+unsigned char *
+cpp_convert_from_execution_charset (cpp_reader *pfile, cpp_ttype type,
+				    const unsigned char *chars,
+				    int length_in_bytes,
+				    int *result_length)
+{
+  struct cset_converter converter;
+  const char *from_charset;
+  unsigned char *result = NULL;
+
+  bool be = CPP_OPTION (pfile, bytes_big_endian);
+  switch (type)
+    {
+    case CPP_STRING:
+      from_charset = get_narrow_charset (pfile);
+      break;
+
+    case CPP_STRING16:
+      from_charset = be ? "UTF-16BE" : "UTF-16LE";
+      break;
+
+    case CPP_STRING32:
+      from_charset = be ? "UTF-32BE" : "UTF-32LE";
+      break;
+
+    case CPP_WSTRING:
+      from_charset = get_wide_charset (pfile);
+      break;
+
+    default:
+      abort ();
+    }
+
+  converter = init_iconv_desc (pfile, SOURCE_CHARSET, from_charset);
+  if (converter.func != convert_no_conversion)
+    {
+      struct _cpp_strbuf to;
+
+      to.asize = length_in_bytes;
+      to.text = XNEWVEC (uchar, to.asize);
+      to.len = 0;
+
+      if (!APPLY_CONVERSION (converter, chars, length_in_bytes, &to))
+	{
+	  cpp_error (pfile, CPP_DL_ERROR,
+		     "failure to convert %s to %s", from_charset,
+		     SOURCE_CHARSET);
+	  free (to.text);
+	}
+      else
+	{
+	  *result_length = to.len;
+	  result = to.text;
+	}
+    }
+
+  destroy_iconv_desc (&converter);
+  return result;
 }
