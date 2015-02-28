@@ -1876,7 +1876,8 @@ cpp_convert_from_execution_charset (cpp_reader *pfile, cpp_ttype type,
     }
 
   converter = init_iconv_desc (pfile, SOURCE_CHARSET, from_charset);
-  if (converter.func != convert_no_conversion)
+  if (strcmp (SOURCE_CHARSET, from_charset) == 0
+      || converter.func != convert_no_conversion)
     {
       struct _cpp_strbuf to;
 
