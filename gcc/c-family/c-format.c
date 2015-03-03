@@ -3043,6 +3043,46 @@ cmp_attribs (const char *tattr_name, const char *attr_name)
   return true;
 }
 
+/* Initialize dynamic_types, if needed.  */
+static void
+initialize_dynamic_types_once (void)
+{
+  if (!dynamic_format_types)
+    {
+      int extra_count = 0;
+
+#ifdef TARGET_FORMAT_TYPES
+      if (TARGET_FORMAT_TYPES != NULL)
+	extra_count = TARGET_N_FORMAT_TYPES;
+#endif
+
+      dynamic_format_types = XNEWVEC (format_kind_info, n_format_types + extra_count);
+      memcpy (dynamic_format_types, format_types_orig, sizeof (format_types_orig));
+#ifdef TARGET_FORMAT_TYPES
+      if (TARGET_FORMAT_TYPES != NULL)
+	memcpy (&dynamic_format_types[n_format_types], TARGET_FORMAT_TYPES,
+		TARGET_N_FORMAT_TYPES * sizeof (dynamic_format_types[0]));
+#endif
+
+      format_types = dynamic_format_types;
+      /* Provide a reference for the first potential external type.  */
+      first_target_format_type = n_format_types;
+      n_format_types += extra_count;
+    }
+}
+
+void
+add_new_format_attributes (int len, const format_kind_info *infos)
+{
+  initialize_dynamic_types_once ();
+
+  dynamic_format_types = XRESIZEVEC (format_kind_info, dynamic_format_types,
+				     n_format_types + len);
+  memcpy (&dynamic_format_types[n_format_types], infos, len * sizeof (*infos));
+  format_types = dynamic_format_types;
+  n_format_types += len;
+}
+
 /* Handle a "format" attribute; arguments as in
    struct attribute_spec.handler.  */
 tree
@@ -3052,24 +3092,7 @@ handle_format_attribute (tree *node, tree ARG_UNUSED (name), tree args,
   tree type = *node;
   function_format_info info;
 
-#ifdef TARGET_FORMAT_TYPES
-  /* If the target provides additional format types, we need to
-     add them to FORMAT_TYPES at first use.  */
-  if (TARGET_FORMAT_TYPES != NULL && !dynamic_format_types)
-    {
-      dynamic_format_types = XNEWVEC (format_kind_info,
-				      n_format_types + TARGET_N_FORMAT_TYPES);
-      memcpy (dynamic_format_types, format_types_orig,
-	      sizeof (format_types_orig));
-      memcpy (&dynamic_format_types[n_format_types], TARGET_FORMAT_TYPES,
-	      TARGET_N_FORMAT_TYPES * sizeof (dynamic_format_types[0]));
-
-      format_types = dynamic_format_types;
-      /* Provide a reference for the first potential external type.  */
-      first_target_format_type = n_format_types;
-      n_format_types += TARGET_N_FORMAT_TYPES;
-    }
-#endif
+  initialize_dynamic_types_once ();
 
   if (!decode_format_attr (args, &info, 0))
     {

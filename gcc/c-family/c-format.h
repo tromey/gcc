@@ -325,4 +325,7 @@ typedef struct
   const char *named_attr_dst;
 } target_ovr_attr;
 
+/* Add LEN new format attributes, from INFOS.  */
+extern void add_new_format_attributes (int len, const format_kind_info *infos);
+
 #endif /* GCC_C_FORMAT_H */
