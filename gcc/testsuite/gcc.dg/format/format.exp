@@ -26,7 +26,8 @@ load_lib gcc-dg.exp
 load_lib torture-options.exp
 
 torture-init
-set-torture-options [list { } { -DWIDE } { -DCHAR16 } { -DCHAR32 } ]
+set-torture-options [list { } { -DWIDE } { -DCHAR16 } { -DCHAR32 } ] \
+    {{-ftrack-macro-expansion=0}}
 
 dg-init
 gcc-dg-runtest [lsort [glob -nocomplain $srcdir/$subdir/*.\[cS\]]] "" ""
