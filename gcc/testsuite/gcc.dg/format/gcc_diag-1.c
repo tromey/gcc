@@ -210,7 +210,7 @@ foo (int i, int i1, int i2, unsigned int u, double d, char *s, void *p,
   diag ("%d\0%d", i, i); /* { dg-warning "embedded|too many" "warning for embedded NUL" } */
   diag (NULL); /* { dg-warning "null" "null format string warning" } */
   diag ("%"); /* { dg-warning "trailing" "trailing % warning" } */
-  diag ((const char *)L"foo"); /* { dg-warning "wide" "wide string" } */
+  diag ((const char *)L"foo"); /* { dg-warning "type" "does not match type" } */
   diag ("%s", (char *)0); /* { dg-warning "null" "%s with NULL" } */
 
   /* Make sure we still get warnings for regular printf.  */

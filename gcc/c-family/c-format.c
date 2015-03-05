@@ -917,6 +917,9 @@ typedef struct
      string literals, but had extra format arguments and used $ operand
      numbers.  */
   int number_dollar_extra_args;
+  /* Number of leaves of the format argument that had a mismatched
+     type.  */
+  int number_mismatch;
   /* Number of leaves of the format argument that were empty strings.  */
   int number_empty;
   /* Number of leaves of the format argument that were unterminated
@@ -932,6 +935,7 @@ typedef struct
 {
   format_check_results *res;
   function_format_info *info;
+  const_tree fntype;
   tree params;
 } format_check_context;
 
@@ -955,7 +959,7 @@ format_flags (int format_num)
   gcc_unreachable ();
 }
 
-static void check_format_info (function_format_info *, tree);
+static void check_format_info (const_tree, function_format_info *, tree);
 static void check_format_arg (void *, tree, unsigned HOST_WIDE_INT);
 static void check_format_info_main (format_check_results *,
 				    function_format_info *,
@@ -1001,6 +1005,7 @@ decode_format_type (const char *s)
 
 
 /* Check the argument list of a call to printf, scanf, etc.
+   FNTYPE is the function type.
    ATTRS are the attributes on the function type.  There are NARGS argument
    values in the array ARGARRAY.
    Also, if -Wsuggest-attribute=format,
@@ -1008,7 +1013,7 @@ decode_format_type (const char *s)
    attribute themselves.  */
 
 void
-check_function_format (tree attrs, int nargs, tree *argarray)
+check_function_format (const_tree fntype, tree attrs, int nargs, tree *argarray)
 {
   tree a;
 
@@ -1029,7 +1034,7 @@ check_function_format (tree attrs, int nargs, tree *argarray)
 	      int i;
 	      for (i = nargs - 1; i >= 0; i--)
 		params = tree_cons (NULL_TREE, argarray[i], params);
-	      check_format_info (&info, params);
+	      check_format_info (fntype, &info, params);
 	    }
 	  if (warn_suggest_attribute_format && info.first_arg_num == 0
 	      && (format_types[info.format_type].flags
@@ -1319,11 +1324,12 @@ get_flag_spec (const format_flag_spec *spec, int flag, const char *predicates)
 
 
 /* Check the argument list of a call to printf, scanf, etc.
+   FNTYPE is the type of the function being called.
    INFO points to the function_format_info structure.
    PARAMS is the list of argument values.  */
 
 static void
-check_format_info (function_format_info *info, tree params)
+check_format_info (const_tree fntype, function_format_info *info, tree params)
 {
   format_check_context format_ctx;
   unsigned HOST_WIDE_INT arg_num;
@@ -1348,6 +1354,7 @@ check_format_info (function_format_info *info, tree params)
   res.number_extra_args = 0;
   res.extra_arg_loc = UNKNOWN_LOCATION;
   res.number_dollar_extra_args = 0;
+  res.number_mismatch = 0;
   res.number_empty = 0;
   res.number_unterminated = 0;
   res.number_other = 0;
@@ -1355,6 +1362,7 @@ check_format_info (function_format_info *info, tree params)
 
   format_ctx.res = &res;
   format_ctx.info = info;
+  format_ctx.fntype = fntype;
   format_ctx.params = params;
 
   check_function_arguments_recurse (check_format_arg, &format_ctx,
@@ -1418,6 +1426,10 @@ check_format_info (function_format_info *info, tree params)
     warning_at (loc, OPT_Wformat_zero_length, "zero-length %s format string",
 	     format_types[info->format_type].name);
 
+  if (res.number_mismatch > 0)
+    warning_at (loc, OPT_Wformat_,
+		"format string does not match type of formal argument");
+
   if (res.number_unterminated > 0)
     warning_at (loc, OPT_Wformat_, "unterminated format string");
 }
@@ -1435,6 +1447,7 @@ check_format_arg (void *ctx, tree format_tree,
   format_check_results *res = format_ctx->res;
   function_format_info *info = format_ctx->info;
   tree params = format_ctx->params;
+  const_tree fntype = format_ctx->fntype;
 
   int format_length;
   HOST_WIDE_INT offset;
@@ -1561,6 +1574,16 @@ check_format_arg (void *ctx, tree format_tree,
   if (TREE_CODE (format_tree) != STRING_CST)
     {
       res->number_non_literal++;
+      return;
+    }
+
+  tree formal_type = TYPE_ARG_TYPES (fntype);
+  for (unsigned int i = 1; i < info->format_num; ++i)
+    formal_type = TREE_CHAIN (formal_type);
+  if (TYPE_MAIN_VARIANT (TREE_TYPE (TREE_TYPE (format_tree)))
+      != TYPE_MAIN_VARIANT (TREE_TYPE (TREE_VALUE (formal_type))))
+    {
+      res->number_mismatch++;
       return;
     }
   format_chars = TREE_STRING_POINTER (format_tree);

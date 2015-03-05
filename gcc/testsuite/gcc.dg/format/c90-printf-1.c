@@ -231,7 +231,7 @@ foo (int i, int i1, int i2, unsigned int u, double d, char *s, void *p,
   printf ("%"); /* { dg-warning "11:trailing" "trailing % warning" } */
   printf ("%++d", i); /* { dg-warning "11:repeated" "repeated flag warning" } */
   printf ("%n", cn); /* { dg-warning "3:constant" "%n with const" } */
-  printf ((const char *)L"foo"); /* { dg-warning "25:wide" "wide string" } */
+  printf ((const char *)L"foo"); /* { dg-warning "25:type" "does not match type" } */
   printf ("%n", (int *)0); /* { dg-warning "3:null" "%n with NULL" } */
   printf ("%s", (char *)0); /* { dg-warning "3:null" "%s with NULL" } */
 }

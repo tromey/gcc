@@ -72,7 +72,7 @@ foo (int i, int i1, int i2, unsigned int u, double d, char *s, void *p,
   asm_fprintf (NULL); /* { dg-warning "null" "null format string warning" } */
   asm_fprintf ("%"); /* { dg-warning "16:trailing" "trailing % warning" } */
   asm_fprintf ("%++d", i); /* { dg-warning "16:repeated" "repeated flag warning" } */
-  asm_fprintf ((const char *)L"foo"); /* { dg-warning "30:wide" "wide string" } */
+  asm_fprintf ((const char *)L"foo"); /* { dg-warning "30:type" "does not match type" } */
   asm_fprintf ("%s", (char *)0); /* { dg-warning "null" "%s with NULL" } */
 
   /* Make sure we still get warnings for regular printf.  */
