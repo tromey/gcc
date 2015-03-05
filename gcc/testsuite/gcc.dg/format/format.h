@@ -32,6 +32,7 @@
 #define USE_STRFTIME(FMTPOS)
 #endif
 
+#if defined (WIDE_TEST)
 #if defined (WIDE)
 #define PREFIX L
 #define CHAR wchar_t
@@ -41,7 +42,10 @@
 #elif defined (CHAR32)
 #define PREFIX U
 #define CHAR char32_t
-#else
+#endif
+#endif
+
+#ifndef CHAR
 #define CHAR char
 #define STR(S) S
 #endif
