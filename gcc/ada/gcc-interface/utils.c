@@ -1154,7 +1154,9 @@ make_packable_type (tree type, bool in_record, unsigned int max_align)
 
   finish_record_type (new_type, nreverse (new_field_list), 2, false);
   relate_alias_sets (new_type, type, ALIAS_SET_COPY);
-  if (gnat_encodings == DWARF_GNAT_ENCODINGS_MINIMAL)
+  if (in_record
+      ? (gnat_encodings == DWARF_GNAT_ENCODINGS_MINIMAL)
+      : (gnat_encodings != DWARF_GNAT_ENCODINGS_ALL))
     SET_TYPE_DEBUG_TYPE (new_type, TYPE_DEBUG_TYPE (type));
   else if (TYPE_STUB_DECL (type))
     SET_DECL_PARALLEL_TYPE (TYPE_STUB_DECL (new_type),
@@ -1429,7 +1431,7 @@ maybe_pad_type (tree type, tree size, unsigned int align,
      information.  */
   if (TYPE_IMPL_PACKED_ARRAY_P (type)
       && TYPE_ORIGINAL_PACKED_ARRAY (type)
-      && gnat_encodings == DWARF_GNAT_ENCODINGS_MINIMAL)
+      && gnat_encodings != DWARF_GNAT_ENCODINGS_ALL)
     TYPE_NAME (record) = TYPE_NAME (TYPE_ORIGINAL_PACKED_ARRAY (type));
   else if (Present (gnat_entity))
     TYPE_NAME (record) = create_concat_name (gnat_entity, "PAD");

@@ -2002,7 +2002,7 @@ gnat_to_gnu_entity (Entity_Id gnat_entity, tree gnu_expr, bool definition)
 
 	      /* Since GNU_TYPE is a padding type around the packed array
 		 implementation type, the padded type is its debug type.  */
-	      if (gnat_encodings == DWARF_GNAT_ENCODINGS_MINIMAL)
+	      if (gnat_encodings != DWARF_GNAT_ENCODINGS_ALL)
 		SET_TYPE_DEBUG_TYPE (gnu_type, gnu_field_type);
 	    }
 	}
@@ -2370,7 +2370,7 @@ gnat_to_gnu_entity (Entity_Id gnat_entity, tree gnu_expr, bool definition)
 	else
 	  gnat_name = gnat_entity;
 	tree xup_name
-	  = (gnat_encodings == DWARF_GNAT_ENCODINGS_MINIMAL)
+	  = (gnat_encodings != DWARF_GNAT_ENCODINGS_ALL)
 	    ? get_entity_name (gnat_name)
 	    : create_concat_name (gnat_name, "XUP");
 	create_type_decl (xup_name, gnu_fat_type, artificial_p, debug_info_p,
@@ -2385,7 +2385,7 @@ gnat_to_gnu_entity (Entity_Id gnat_entity, tree gnu_expr, bool definition)
 	   don't have to name them as a GNAT encoding, except if specifically
 	   asked to.  */
 	tree xut_name
-	  = (gnat_encodings == DWARF_GNAT_ENCODINGS_MINIMAL)
+	  = (gnat_encodings != DWARF_GNAT_ENCODINGS_ALL)
 	    ? get_entity_name (gnat_name)
 	    : create_concat_name (gnat_name, "XUT");
 	tem = build_unc_object_type (gnu_template_type, tem, xut_name,
@@ -2625,7 +2625,7 @@ gnat_to_gnu_entity (Entity_Id gnat_entity, tree gnu_expr, bool definition)
 		       && TREE_CODE (TREE_TYPE (gnu_index_type))
 			  != INTEGER_TYPE)
 		   || TYPE_BIASED_REPRESENTATION_P (gnu_index_type))
-		  && gnat_encodings != DWARF_GNAT_ENCODINGS_MINIMAL)
+		  && gnat_encodings == DWARF_GNAT_ENCODINGS_ALL)
 		need_index_type_struct = true;
 	    }
 
@@ -2768,7 +2768,7 @@ gnat_to_gnu_entity (Entity_Id gnat_entity, tree gnu_expr, bool definition)
 		    = gnat_to_gnu_entity (Etype (gnat_entity), NULL_TREE,
 					  false);
 		  if (!DECL_ARTIFICIAL (gnu_base_decl)
-		      && gnat_encodings != DWARF_GNAT_ENCODINGS_MINIMAL)
+		      && gnat_encodings == DWARF_GNAT_ENCODINGS_ALL)
 		    add_parallel_type (gnu_type,
 				       TREE_TYPE (TREE_TYPE (gnu_base_decl)));
 		}
@@ -2828,7 +2828,7 @@ gnat_to_gnu_entity (Entity_Id gnat_entity, tree gnu_expr, bool definition)
 	      save_gnu_tree (gnat_entity, NULL_TREE, false);
 
 	      /* Set the ___XP suffix for GNAT encodings.  */
-	      if (gnat_encodings != DWARF_GNAT_ENCODINGS_MINIMAL)
+	      if (gnat_encodings == DWARF_GNAT_ENCODINGS_ALL)
 		gnu_entity_name = DECL_NAME (TYPE_NAME (gnu_type));
 
 	      tree gnu_inner = gnu_type;
@@ -10008,7 +10008,7 @@ associate_original_type_to_packed_array (tree gnu_type, Entity_Id gnat_entity)
   if (TYPE_IS_DUMMY_P (gnu_original_array_type))
     return;
 
-  if (gnat_encodings == DWARF_GNAT_ENCODINGS_MINIMAL)
+  if (gnat_encodings != DWARF_GNAT_ENCODINGS_ALL)
     {
       tree original_name = TYPE_NAME (gnu_original_array_type);
 

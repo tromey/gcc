@@ -827,7 +827,7 @@ gnat_get_array_descr_info (const_tree const_type,
     }
 
   else if (TYPE_IS_FAT_POINTER_P (type)
-	   && gnat_encodings == DWARF_GNAT_ENCODINGS_MINIMAL)
+	   && gnat_encodings != DWARF_GNAT_ENCODINGS_ALL)
     {
       const tree ua_type = TYPE_UNCONSTRAINED_ARRAY (type);
 
@@ -855,7 +855,7 @@ gnat_get_array_descr_info (const_tree const_type,
      TYPE_IS_THIN_POINTER_P predicate.  */
   else if (TREE_CODE (type) == RECORD_TYPE
 	   && TYPE_CONTAINS_TEMPLATE_P (type)
-	   && gnat_encodings == DWARF_GNAT_ENCODINGS_MINIMAL)
+	   && gnat_encodings != DWARF_GNAT_ENCODINGS_ALL)
     {
       /* This will be our base object address.  Note that we assume that
 	 pointers to these will actually point to the array field (thin
@@ -954,7 +954,7 @@ gnat_get_array_descr_info (const_tree const_type,
 	  if (TYPE_CONTEXT (first_dimen)
 	      && TREE_CODE (TYPE_CONTEXT (first_dimen)) != RECORD_TYPE
 	      && CONTAINS_PLACEHOLDER_P (TYPE_MIN_VALUE (index_type))
-	      && gnat_encodings != DWARF_GNAT_ENCODINGS_MINIMAL)
+	      && gnat_encodings == DWARF_GNAT_ENCODINGS_ALL)
 	    {
 	      info->dimen[i].lower_bound = NULL_TREE;
 	      info->dimen[i].upper_bound = NULL_TREE;
@@ -995,7 +995,7 @@ gnat_get_array_descr_info (const_tree const_type,
   info->allocated = NULL_TREE;
   info->associated = NULL_TREE;
 
-  if (gnat_encodings == DWARF_GNAT_ENCODINGS_MINIMAL)
+  if (gnat_encodings != DWARF_GNAT_ENCODINGS_ALL)
     {
       /* When arrays contain dynamically-sized elements, we usually wrap them
 	 in padding types, or we create constrained types for them.  Then, if
