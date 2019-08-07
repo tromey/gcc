@@ -1,3 +1,8 @@
+2019-08-07  Tom Tromey  <tromey@adacore.com>
+
+	PR jit/91330:
+	* docs/conf.py (texinfo_documents): Set description.
+
 2019-07-22  Andrea Corallo <andrea.corallo@arm.com>
 
 	* jit-recording.c (unary_op_reproducer_strings): Make it extern.
