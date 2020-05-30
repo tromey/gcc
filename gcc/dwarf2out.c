@@ -3769,7 +3769,7 @@ static void output_ranges (void);
 static dw_line_info_table *new_line_info_table (void);
 static void output_line_info (bool);
 static void output_file_names (void);
-static dw_die_ref base_type_die (tree, bool);
+static dw_die_ref base_type_die (tree, bool, dw_die_ref context_die);
 static int is_base_type (tree);
 static dw_die_ref subrange_type_die (tree, tree, tree, tree, dw_die_ref);
 static int decl_quals (const_tree);
@@ -12781,7 +12781,7 @@ need_endianity_attribute_p (bool reverse)
    Dwarf base (fundamental) types.  */
 
 static dw_die_ref
-base_type_die (tree type, bool reverse)
+base_type_die (tree type, bool reverse, dw_die_ref context_die)
 {
   dw_die_ref base_type_result;
   enum dwarf_type encoding;
@@ -12892,6 +12892,13 @@ base_type_die (tree type, bool reverse)
 		     BYTES_BIG_ENDIAN ? DW_END_little : DW_END_big);
 
   add_alignment_attribute (base_type_result, type);
+
+  /* A GCC extension to add the base type of a complex type.  */
+  if (TREE_CODE (type) == COMPLEX_TYPE
+      && encoding == DW_ATE_lo_user
+      && !dwarf_strict)
+    add_type_attribute (base_type_result, TREE_TYPE (type),
+			TYPE_UNQUALIFIED, reverse, context_die);
 
   if (fpt_used)
     {
@@ -13430,7 +13437,7 @@ modified_type_die (tree type, int cv_quals, bool reverse,
     }
   else if (is_base_type (type))
     {
-      mod_type_die = base_type_die (type, reverse);
+      mod_type_die = base_type_die (type, reverse, context_die);
 
       /* The DIE with DW_AT_endianity is placed right after the naked DIE.  */
       if (reverse_base_type)
